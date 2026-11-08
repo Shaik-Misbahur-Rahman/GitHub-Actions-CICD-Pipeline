@@ -1,0 +1,71 @@
+
+name: Terraform AWS OIDC Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Select Terraform Action"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform OIDC Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Authenticate with AWS using OIDC
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::095192198680:role/OIDC-Role
+          aws-region: us-east-1
+
+      # Step 3: Verify AWS Authentication
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+      # Step 4: Install Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Step 5: Terraform Initialization
+      - name: Terraform Init
+        run: terraform init
+
+      # Step 6: Terraform Format Check
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      # Step 7: Terraform Validation
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Step 8: Terraform Plan
+      - name: Terraform Plan
+        if: ${{ inputs.action == 'plan' || inputs.action == 'apply' }}
+        run: terraform plan -input=false -out=tfplan
+
+      # Step 9: Terraform Apply
+      - name: Terraform Apply
+        if: ${{ inputs.action == 'apply' }}
+        run: terraform apply -input=false -auto-approve tfplan
+
+      # Step 10: Terraform Destroy
+      - name: Terraform Destroy
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform destroy -auto-approve
