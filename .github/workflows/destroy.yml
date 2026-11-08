@@ -1,0 +1,56 @@
+
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+
+    environment: production
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Step 3: Terraform Initialization
+      - name: Terraform Init
+        run: terraform init
+
+      # Step 4: Terraform Validation
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Step 5: Generate Destroy Plan
+      - name: Terraform Destroy Plan
+        run: terraform plan -destroy -out=destroy.tfplan
+
+      # Step 6: Upload Destroy Plan
+      - name: Upload Destroy Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: destroy-plan
+          path: destroy.tfplan
+          retention-days: 1
+
+      # Step 7: Download Destroy Plan
+      - name: Download Destroy Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: destroy-plan
+
+      # Step 8: Terraform Destroy
+      - name: Terraform Destroy
+        run: terraform apply -auto-approve destroy.tfplan
